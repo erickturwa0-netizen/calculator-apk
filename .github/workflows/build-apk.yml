@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -19,23 +19,35 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Create Gradle Wrapper
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Generate Gradle Wrapper
         run: |
-          gradle wrapper --gradle-version 8.9
+          # Install gradle if needed
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gradle || true
+          gradle wrapper --gradle-version 8.9 --distribution-type bin
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: ./gradlew assembleDebug --stacktrace --info
 
-      - name: List APK
-        run: ls -lh app/build/outputs/apk/debug/
+      - name: Show APK
+        run: |
+          echo "=== APK files ==="
+          find app/build/outputs -name "*.apk" -ls || true
+          ls -lh app/build/outputs/apk/debug/ || true
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: calculator-debug-apk
